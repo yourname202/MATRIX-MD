@@ -1,4 +1,3 @@
-# 🤖 MATRIX-MD
 # 🤖 MATRIX-MD - Bot WhatsApp Multi Device
 
 ## Installation
