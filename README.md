@@ -1,12 +1,12 @@
 # 🤖 MATRIX-MD by your name betterfly 
-
-! (MATRIX MD) https://postimages.org/IMG-20251221-WA0059.jpg
-
+---
+! [ MATRIX MD BOT Image] (https://postimages.org/IMG-20251221-WA0059.jpg)
+---
 MATRIX-BOT MD
 
 bienvenue dans MTRIX-BOT MD, un bot prévu pour vous assister sur WhatsApp 
 
-- - - 
+
 
 Installation sur termux 
 ```bash
