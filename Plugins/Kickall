@@ -1,0 +1,14 @@
+module.exports = {
+  command: "kickall",
+  run: async (sock, msg, ...args) => {
+    const participants = args[args.length - 1]
+    for (let p of participants) {
+      if (p !== msg.key.participant) {
+        try {
+          await sock.groupParticipantsUpdate(msg.key.remoteJid, [p], "remove")
+        } catch {}
+      }
+    }
+    await sock.sendMessage(msg.key.remoteJid, { text: "✅ Tous les membres ont été exclus !" })
+  }
+}
