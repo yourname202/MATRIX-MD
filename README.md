@@ -1,4 +1,4 @@
-# 🤖 MATRIX-MD - Bot WhatsApp Multi Device
+# 🤖 MATRIX-MD by your name betterfly 
 
 ## Installation
 ```bash
