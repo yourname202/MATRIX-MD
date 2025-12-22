@@ -1,4 +1,4 @@
-# 🤖 MATRIX-MD BOR MULTI FONCTION ♥️
+# 🤖 MATRIX-MD BOt MULTI FONCTION ♥️
 
 ![Status Badge](https://img.shields.io/badge/STATUS-ONLINE-brightgreen?style=for-the-badge&logo=whatsapp)
 ![Version Badge](https://img.shields.io/badge/VERSION-v1.0-blue?style=for-the-badge&logo=git)
