@@ -6,6 +6,7 @@ const { default: makeWASocket, useMultiFileAuthState, fetchLatestBaileysVersion 
 const pino = require("pino")
 
 // -------- ENV --------
+const OWNER = process.env.OWNER_NUMBER || "" // numéro WhatsApp du propriétaire
 const BOT_NAME = process.env.BOT_NAME || "MATRIX-MD"
 const COMMAND_PREFIX = process.env.COMMAND_PREFIX || "."
 
@@ -45,22 +46,36 @@ async function startBot() {
 
   sock.ev.on("creds.update", saveCreds)
 
-  // 🔥 ICI : affichage du QR
+  // -------- Connection Update --------
   sock.ev.on("connection.update", (update) => {
     const { connection, qr } = update
 
+    // Afficher QR code si présent
     if (qr) {
       console.log("\n📱 Scanne ce QR code avec WhatsApp\n")
       qrcode.generate(qr, { small: true })
     }
 
+    // Quand le bot est connecté
     if (connection === "open") {
       console.log(`\n🤖 ${BOT_NAME} connecté avec succès !`)
+
+      // Envoie message de bienvenue au propriétaire
+      if (OWNER) {
+        sock.sendMessage(OWNER, {
+          text: `
+🤖 Bonjour ! ${BOT_NAME} est maintenant en ligne.
+📜 Tapez .menu pour voir toutes les commandes.
+💬 Vous pouvez maintenant utiliser le bot.
+        `
+        }).catch(() => console.log("❌ Impossible d'envoyer le message de bienvenue"))
+      }
     }
 
+    // Gestion de fermeture de connexion
     if (connection === "close") {
-      console.log("❌ Connexion fermée, redémarrage…")
-      startBot()
+      console.log("❌ Connexion fermée. Redémarrage manuel requis.")
+      // startBot() <-- commenté pour éviter boucle infinie
     }
   })
 
@@ -99,4 +114,5 @@ async function startBot() {
   })
 }
 
+// -------- Démarrer le bot --------
 startBot()
