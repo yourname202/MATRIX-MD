@@ -4,12 +4,9 @@ const path = require("path")
 const { default: makeWASocket, useMultiFileAuthState, fetchLatestBaileysVersion } = require("@whiskeysockets/baileys")
 const pino = require("pino")
 
-// -------- Variables depuis .env --------
-const OWNER = process.env.OWNER_NUMBER
+// -------- Variables .env --------
+const OWNER = process.env.OWNER_NUMBER || ""
 const BOT_NAME = process.env.BOT_NAME || "MATRIX-MD"
-const OPENAI_KEY = process.env.OPENAI_API_KEY
-const WELCOME_MESSAGE = process.env.WELCOME_MESSAGE || "Bienvenue !"
-const GOODBYE_MESSAGE = process.env.GOODBYE_MESSAGE || "Au revoir !"
 const COMMAND_PREFIX = process.env.COMMAND_PREFIX || "."
 
 // -------- Charger les plugins --------
@@ -18,75 +15,85 @@ const pluginFolders = [
   "system","admin","owner","image","game","ai","fun","textmaker","download","insu_compl"
 ]
 
-pluginFolders.forEach(folder => {
+for (const folder of pluginFolders) {
   const folderPath = path.join(__dirname, "plugins", folder)
   if (fs.existsSync(folderPath)) {
-    fs.readdirSync(folderPath).forEach(file => {
+    const files = fs.readdirSync(folderPath)
+    for (const file of files) {
+      if (!file.endsWith(".js")) continue
       const plugin = require(`./plugins/${folder}/${file}`)
-      if (plugin && plugin.command && plugin.run) plugins[plugin.command] = plugin.run
-    })
+      if (plugin?.command && typeof plugin.run === "function") {
+        plugins[plugin.command.toLowerCase()] = plugin.run
+      }
+    }
   }
-})
+}
 
 // -------- Créer dossier session --------
-if (!fs.existsSync("./session")) fs.mkdirSync("./session")
+if (!fs.existsSync("./session")) {
+  fs.mkdirSync("./session")
+}
 
 // -------- Fonction principale --------
 async function startBot() {
   const { state, saveCreds } = await useMultiFileAuthState("./session")
-  const [version] = await fetchLatestBaileysVersion()
+
+  // ⚠️ CORRECTION ICI (pas de destructuring)
+  const versionData = await fetchLatestBaileysVersion()
+  const version = versionData.version || versionData
 
   const sock = makeWASocket({
     logger: pino({ level: "silent" }),
     auth: state,
     version,
-    printQRInTerminal: true // <-- Affiche le QR code
+    printQRInTerminal: true // ✅ QR CODE
   })
 
   sock.ev.on("creds.update", saveCreds)
 
-  console.log(`🤖 ${BOT_NAME} prêt ! Scanne le QR code avec ton WhatsApp pour connecter.`)
-
-  // -------- Photo de profil automatique (optionnel) --------
-  const profilePath = "./assets/profile.jpg"
-  if (fs.existsSync(profilePath)) {
-    try {
-      await sock.updateProfilePicture(OWNER, { url: profilePath })
-      console.log("✅ Photo de profil mise à jour !")
-    } catch {}
-  }
+  console.log(`🤖 ${BOT_NAME} lancé`)
+  console.log("📱 Scanne le QR code avec WhatsApp → Appareils connectés")
 
   // -------- Écoute des messages --------
   sock.ev.on("messages.upsert", async ({ messages }) => {
     const msg = messages[0]
-    if (!msg.message) return
+    if (!msg?.message) return
 
-    const text = msg.message.conversation || msg.message.extendedTextMessage?.text
-    if (!text) return
+    const text =
+      msg.message.conversation ||
+      msg.message.extendedTextMessage?.text
 
-    const args = text.trim().split(" ")
-    const cmdName = args[0].replace(COMMAND_PREFIX, "").toLowerCase()
+    if (!text || !text.startsWith(COMMAND_PREFIX)) return
 
-    // Récupérer participants si nécessaire
+    const args = text.slice(COMMAND_PREFIX.length).trim().split(/\s+/)
+    const cmdName = args.shift().toLowerCase()
+
+    // Récupérer les participants pour certaines commandes
     let participants = []
-    if (["tagall","kickall"].includes(cmdName)) {
+    if (["tagall", "kickall"].includes(cmdName)) {
       try {
         const group = await sock.groupMetadata(msg.key.remoteJid)
         participants = group.participants.map(p => p.id)
-      } catch {}
+      } catch (e) {
+        console.log("⚠️ Impossible de récupérer les participants")
+      }
     }
 
-    // Exécuter commande
+    // Exécuter la commande
     if (plugins[cmdName]) {
       try {
-        await plugins[cmdName](sock, msg, ...args.slice(1), participants)
+        await plugins[cmdName](sock, msg, args, participants)
       } catch (err) {
-        console.log(`Erreur commande ${cmdName}:`, err)
-        await sock.sendMessage(msg.key.remoteJid, { text: `❌ Erreur lors de l'exécution de la commande ${cmdName}` })
+        console.log(`❌ Erreur commande ${cmdName}`, err)
+        await sock.sendMessage(msg.key.remoteJid, {
+          text: "❌ Erreur lors de l'exécution de la commande"
+        })
       }
     }
   })
 }
 
-// -------- Démarrer le bot --------
-startBot()
+// -------- Lancer le bot --------
+startBot().catch(err => {
+  console.log("❌ Erreur démarrage bot :", err)
+})
