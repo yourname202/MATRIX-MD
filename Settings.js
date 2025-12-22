@@ -12,7 +12,7 @@ const settings = {
   description: "MATRIX MD — Bot WhatsApp en français, rapide, multi-device, créer par YOUR NAME-TECH.",
   version: "1.0.1",
   channelLink: "https://whatsapp.com/channel/0029VbCB5Vu6xCSXNqDV9X3v",
-  updateZipUrl: "https://github.com/STIVE-DEVX/ZENTROX-MD-main.zip",
+  updateZipUrl: "https://github.com/yourname202/MATRIX-MD.git",
   botPreview: "https://i.postimg.cc/Dz3mbLwc/bot-image-f-Of28PVl.jpg",
 
   // Carte globale
