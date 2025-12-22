@@ -14,6 +14,8 @@ const {
 // -------- ENV --------
 const OWNER = process.env.OWNER_NUMBER || ""
 const BOT_NAME = process.env.BOT_NAME || "MATRIX-MD"
+const GOODBYE_MESSAGE = process.env.GOODBYE_MESSAGE || "Au-revoir"
+const BIENVENUE_MESSAGE = process.env.BIENVENUE_MESSAGE || "bien dans le groupe, s'il-te-plaît présente toi
 const COMMAND_PREFIX = process.env.COMMAND_PREFIX || "."
 
 // ⚠️ NUMÉRO POUR PAIRING (format international sans +)
