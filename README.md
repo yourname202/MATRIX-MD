@@ -6,7 +6,7 @@
 
 ---
 
-! ![POPKID-MD Bot Image](https://files.catbox.moe/9tzte1.jpg)
+! ![MATRIX-MD Bot Image](https://files.catbox.moe/oi1bqx.jpg)
 
 ---
 MATRIX-BOT MD
