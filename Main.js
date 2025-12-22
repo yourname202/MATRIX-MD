@@ -1,145 +1,134 @@
-require("dotenv").config()
-const fs = require("fs")
-const path = require("path")
-const qrcode = require("qrcode-terminal")
-const pino = require("pino")
+require("dotenv").config();
+const fs = require("fs");
+const path = require("path");
+const qrcode = require("qrcode-terminal");
+const pino = require("pino");
 
 const {
   default: makeWASocket,
   useMultiFileAuthState,
   fetchLatestBaileysVersion,
   DisconnectReason
-} = require("@whiskeysockets/baileys")
+} = require("@whiskeysockets/baileys");
 
 // -------- ENV --------
-const OWNER = process.env.OWNER_NUMBER || ""
-const BOT_NAME = process.env.BOT_NAME || "MATRIX-MD"
-const GOODBYE_MESSAGE = process.env.GOODBYE_MESSAGE || "Au-revoir"
-const BIENVENUE_MESSAGE = process.env.BIENVENUE_MESSAGE || "bien dans le groupe, s'il-te-plaît présente toi
-const COMMAND_PREFIX = process.env.COMMAND_PREFIX || "."
-
-// ⚠️ NUMÉRO POUR PAIRING (format international sans +)
-const PAIRING_NUMBER = process.env.PAIRING_NUMBER || "" // ex: 243xxxxxxxxx
+const OWNER = process.env.OWNER_NUMBER || "";
+const BOT_NAME = process.env.BOT_NAME || "MATRIX-MD";
+const GOODBYE_MESSAGE = process.env.GOODBYE_MESSAGE || "Au-revoir";
+const BIENVENUE_MESSAGE = process.env.BIENVENUE_MESSAGE || "Bienvenue dans le groupe, s'il-te-plaît présente toi";
+const COMMAND_PREFIX = process.env.COMMAND_PREFIX || ".";
 
 // -------- Plugins --------
-const plugins = {}
+const plugins = {};
 const pluginFolders = [
   "system","admin","owner","image","game","ai","fun","textmaker","download","insu_compl"
-]
+];
 
 for (const folder of pluginFolders) {
-  const folderPath = path.join(__dirname, "plugins", folder)
-  if (!fs.existsSync(folderPath)) continue
+  const folderPath = path.join(__dirname, "plugins", folder);
+  if (!fs.existsSync(folderPath)) continue;
 
   for (const file of fs.readdirSync(folderPath)) {
-    if (!file.endsWith(".js")) continue
-    const plugin = require(`./plugins/${folder}/${file}`)
+    if (!file.endsWith(".js")) continue;
+    const plugin = require(`./plugins/${folder}/${file}`);
     if (plugin?.command && typeof plugin.run === "function") {
-      plugins[plugin.command.toLowerCase()] = plugin.run
+      plugins[plugin.command.toLowerCase()] = plugin.run;
     }
   }
 }
 
 // -------- Session --------
-const SESSION_DIR = "./session"
-if (!fs.existsSync(SESSION_DIR)) fs.mkdirSync(SESSION_DIR)
+const SESSION_DIR = "./session";
+if (!fs.existsSync(SESSION_DIR)) fs.mkdirSync(SESSION_DIR);
 
 // -------- Start Bot --------
 async function startBot() {
-  const { state, saveCreds } = await useMultiFileAuthState(SESSION_DIR)
-  const { version } = await fetchLatestBaileysVersion()
+  const { state, saveCreds } = await useMultiFileAuthState(SESSION_DIR);
+  const { version } = await fetchLatestBaileysVersion();
 
   const sock = makeWASocket({
     logger: pino({ level: "silent" }),
     auth: state,
     version,
-    printQRInTerminal: false
-  })
+    printQRInTerminal: false // On génère QR code manuellement
+  });
 
-  sock.ev.on("creds.update", saveCreds)
-
-  // -------- Pairing Code (si pas encore connecté) --------
-  if (!state.creds.registered && PAIRING_NUMBER) {
-    setTimeout(async () => {
-      try {
-        const code = await sock.requestPairingCode(PAIRING_NUMBER)
-        console.log("\n🔐 CODE DE PAIRING WHATSAPP")
-        console.log("👉", code)
-        console.log("📱 WhatsApp > Appareils liés > Lier avec un numéro\n")
-      } catch (err) {
-        console.error("❌ Erreur Pairing Code :", err)
-      }
-    }, 3000)
-  }
+  sock.ev.on("creds.update", saveCreds);
 
   // -------- Connection Update --------
   sock.ev.on("connection.update", (update) => {
-    const { connection, qr, lastDisconnect } = update
+    const { connection, qr, lastDisconnect } = update;
 
-    // QR Code
+    // Affichage QR code
     if (qr) {
-      console.log("\n📱 Scanne ce QR Code avec WhatsApp\n")
-      qrcode.generate(qr, { small: true })
+      console.log("\n📱 Scanne ce QR Code avec WhatsApp\n");
+      qrcode.generate(qr, { small: true });
     }
 
     if (connection === "open") {
-      console.log(`\n✅ ${BOT_NAME} connecté avec succès !`)
-
+      console.log(`\n✅ ${BOT_NAME} connecté avec succès !`);
       if (OWNER) {
-        sock.sendMessage(OWNER, {
-          text: `🤖 ${BOT_NAME} est maintenant en ligne.\nTape .menu`
-        }).catch(() => {})
+        sock.sendMessage(OWNER, { text: `🤖 ${BOT_NAME} est maintenant en ligne.\nTapez ${COMMAND_PREFIX}menu` }).catch(() => {});
       }
     }
 
     if (connection === "close") {
-      const reason = lastDisconnect?.error?.output?.statusCode
-      console.log("❌ Connexion fermée :", reason)
+      const reason = lastDisconnect?.error?.output?.statusCode;
+      console.log("❌ Connexion fermée :", reason);
 
       if (reason !== DisconnectReason.loggedOut) {
-        console.log("🔄 Reconnexion...")
-        startBot()
+        console.log("🔄 Reconnexion...");
+        startBot();
       }
     }
-  })
+  });
 
   // -------- Messages --------
   sock.ev.on("messages.upsert", async ({ messages, type }) => {
-    if (type !== "notify") return
+    if (type !== "notify") return;
 
-    const msg = messages[0]
-    if (!msg?.message) return
+    const msg = messages[0];
+    if (!msg?.message) return;
 
-    const text =
-      msg.message.conversation ||
-      msg.message.extendedTextMessage?.text ||
-      ""
+    const text = msg.message.conversation || msg.message.extendedTextMessage?.text || "";
+    if (!text.startsWith(COMMAND_PREFIX)) return;
 
-    if (!text.startsWith(COMMAND_PREFIX)) return
+    const args = text.slice(COMMAND_PREFIX.length).trim().split(/\s+/);
+    const cmdName = args.shift().toLowerCase();
 
-    const args = text.slice(COMMAND_PREFIX.length).trim().split(/\s+/)
-    const cmdName = args.shift().toLowerCase()
-
-    let participants = []
+    let participants = [];
     if (["tagall", "kickall"].includes(cmdName)) {
       try {
-        const group = await sock.groupMetadata(msg.key.remoteJid)
-        participants = group.participants.map(p => p.id)
+        const group = await sock.groupMetadata(msg.key.remoteJid);
+        participants = group.participants.map(p => p.id);
       } catch {}
     }
 
     if (plugins[cmdName]) {
       try {
-        await plugins[cmdName](sock, msg, args, participants)
+        await plugins[cmdName](sock, msg, args, participants);
       } catch (err) {
-        console.error("❌ Erreur commande :", err)
-        await sock.sendMessage(msg.key.remoteJid, {
-          text: "❌ Erreur lors de l’exécution de la commande"
-        })
+        console.error("❌ Erreur commande :", err);
+        await sock.sendMessage(msg.key.remoteJid, { text: "❌ Erreur lors de l’exécution de la commande" });
       }
     }
-  })
+
+    // -------- Commande menu --------
+    if (cmdName === "menu") {
+      const menuText = `
+🤖 ${BOT_NAME} - Menu des commandes
+
+- .help : Liste des commandes
+- .info : Infos du bot
+- .tagall : Taguer tous les membres
+- .kickall : Expulser tous les membres
+- .fun : Jeux et blagues
+- .ai : Intelligence artificielle
+      `;
+      await sock.sendMessage(msg.key.remoteJid, { text: menuText });
+    }
+  });
 }
 
-// -------- Lancer --------
-startBot()        
+// -------- Lancer le bot --------
+startBot();        
