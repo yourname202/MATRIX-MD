@@ -1,8 +1,7 @@
 require("dotenv").config()
 const fs = require("fs")
 const path = require("path")
-const readline = require("readline")
-const { default: makeWASocket, useMultiFileAuthState } = require("@whiskeysockets/baileys")
+const { default: makeWASocket, useMultiFileAuthState, fetchLatestBaileysVersion } = require("@whiskeysockets/baileys")
 const pino = require("pino")
 
 // -------- Variables depuis .env --------
@@ -35,31 +34,18 @@ if (!fs.existsSync("./session")) fs.mkdirSync("./session")
 // -------- Fonction principale --------
 async function startBot() {
   const { state, saveCreds } = await useMultiFileAuthState("./session")
+  const [version] = await fetchLatestBaileysVersion()
 
   const sock = makeWASocket({
     logger: pino({ level: "silent" }),
     auth: state,
-    printQRInTerminal: false
+    version,
+    printQRInTerminal: true // <-- Affiche le QR code
   })
 
   sock.ev.on("creds.update", saveCreds)
 
-  // -------- Pairing code si pas encore connecté --------
-  if (!state.creds.registered) {
-    const rl = readline.createInterface({ input: process.stdin, output: process.stdout })
-    rl.question("📱 Entre ton numéro WhatsApp (ex: 243xxxxxxxx): ", async (number) => {
-      try {
-        const pairingCode = await sock.requestPairingCode(number)
-        console.log("🔑 Ton code de jumelage :", pairingCode)
-        console.log("🔔 Va sur WhatsApp → Appareils connectés → Lier un appareil → Entrer ce code")
-      } catch (err) {
-        console.log("❌ Erreur génération code :", err)
-      }
-      rl.close()
-    })
-  }
-
-  console.log(`🤖 ${BOT_NAME} prêt !`)
+  console.log(`🤖 ${BOT_NAME} prêt ! Scanne le QR code avec ton WhatsApp pour connecter.`)
 
   // -------- Photo de profil automatique (optionnel) --------
   const profilePath = "./assets/profile.jpg"
