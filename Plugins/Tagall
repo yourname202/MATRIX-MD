@@ -1,0 +1,12 @@
+module.exports = {
+  command: "tagall",
+  run: async (sock, msg, ...args) => {
+    const participants = args[args.length - 1]
+    if (!participants || participants.length === 0) return
+    let text = "👥 Tagging everyone:\n"
+    for (let p of participants) {
+      text += `@${p.split("@")[0]} `
+    }
+    await sock.sendMessage(msg.key.remoteJid, { text, mentions: participants })
+  }
+}
