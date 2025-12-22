@@ -1,15 +1,15 @@
 require("dotenv").config()
 const fs = require("fs")
 const path = require("path")
+const qrcode = require("qrcode-terminal")
 const { default: makeWASocket, useMultiFileAuthState, fetchLatestBaileysVersion } = require("@whiskeysockets/baileys")
 const pino = require("pino")
 
-// -------- Variables .env --------
-const OWNER = process.env.OWNER_NUMBER || ""
+// -------- ENV --------
 const BOT_NAME = process.env.BOT_NAME || "MATRIX-MD"
 const COMMAND_PREFIX = process.env.COMMAND_PREFIX || "."
 
-// -------- Charger les plugins --------
+// -------- Plugins --------
 const plugins = {}
 const pluginFolders = [
   "system","admin","owner","image","game","ai","fun","textmaker","download","insu_compl"
@@ -17,44 +17,54 @@ const pluginFolders = [
 
 for (const folder of pluginFolders) {
   const folderPath = path.join(__dirname, "plugins", folder)
-  if (fs.existsSync(folderPath)) {
-    const files = fs.readdirSync(folderPath)
-    for (const file of files) {
-      if (!file.endsWith(".js")) continue
-      const plugin = require(`./plugins/${folder}/${file}`)
-      if (plugin?.command && typeof plugin.run === "function") {
-        plugins[plugin.command.toLowerCase()] = plugin.run
-      }
+  if (!fs.existsSync(folderPath)) continue
+
+  for (const file of fs.readdirSync(folderPath)) {
+    if (!file.endsWith(".js")) continue
+    const plugin = require(`./plugins/${folder}/${file}`)
+    if (plugin?.command && typeof plugin.run === "function") {
+      plugins[plugin.command.toLowerCase()] = plugin.run
     }
   }
 }
 
-// -------- Créer dossier session --------
-if (!fs.existsSync("./session")) {
-  fs.mkdirSync("./session")
-}
+// -------- Session --------
+if (!fs.existsSync("./session")) fs.mkdirSync("./session")
 
-// -------- Fonction principale --------
+// -------- Start Bot --------
 async function startBot() {
   const { state, saveCreds } = await useMultiFileAuthState("./session")
-
-  // ⚠️ CORRECTION ICI (pas de destructuring)
   const versionData = await fetchLatestBaileysVersion()
   const version = versionData.version || versionData
 
   const sock = makeWASocket({
     logger: pino({ level: "silent" }),
     auth: state,
-    version,
-    printQRInTerminal: true // ✅ QR CODE
+    version
   })
 
   sock.ev.on("creds.update", saveCreds)
 
-  console.log(`🤖 ${BOT_NAME} lancé`)
-  console.log("📱 Scanne le QR code avec WhatsApp → Appareils connectés")
+  // 🔥 ICI : affichage du QR
+  sock.ev.on("connection.update", (update) => {
+    const { connection, qr } = update
 
-  // -------- Écoute des messages --------
+    if (qr) {
+      console.log("\n📱 Scanne ce QR code avec WhatsApp\n")
+      qrcode.generate(qr, { small: true })
+    }
+
+    if (connection === "open") {
+      console.log(`\n🤖 ${BOT_NAME} connecté avec succès !`)
+    }
+
+    if (connection === "close") {
+      console.log("❌ Connexion fermée, redémarrage…")
+      startBot()
+    }
+  })
+
+  // -------- Messages --------
   sock.ev.on("messages.upsert", async ({ messages }) => {
     const msg = messages[0]
     if (!msg?.message) return
@@ -68,32 +78,25 @@ async function startBot() {
     const args = text.slice(COMMAND_PREFIX.length).trim().split(/\s+/)
     const cmdName = args.shift().toLowerCase()
 
-    // Récupérer les participants pour certaines commandes
     let participants = []
     if (["tagall", "kickall"].includes(cmdName)) {
       try {
         const group = await sock.groupMetadata(msg.key.remoteJid)
         participants = group.participants.map(p => p.id)
-      } catch (e) {
-        console.log("⚠️ Impossible de récupérer les participants")
-      }
+      } catch {}
     }
 
-    // Exécuter la commande
     if (plugins[cmdName]) {
       try {
         await plugins[cmdName](sock, msg, args, participants)
       } catch (err) {
-        console.log(`❌ Erreur commande ${cmdName}`, err)
+        console.log("Erreur commande:", err)
         await sock.sendMessage(msg.key.remoteJid, {
-          text: "❌ Erreur lors de l'exécution de la commande"
+          text: "❌ Erreur lors de la commande"
         })
       }
     }
   })
 }
 
-// -------- Lancer le bot --------
-startBot().catch(err => {
-  console.log("❌ Erreur démarrage bot :", err)
-})
+startBot()
