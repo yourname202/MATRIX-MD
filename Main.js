@@ -1,3 +1,8 @@
+require("dotenv").config()
+
+const OWNER = process.env.OWNER_NUMBER
+const BOT_NAME = process.env.BOT_NAME
+const OPENAI_KEY = process.env.OPENAI_API_KEY
 const fs = require("fs")
 const path = require("path")
 const { default: makeWASocket, useMultiFileAuthState } = require("@whiskeysockets/baileys")
