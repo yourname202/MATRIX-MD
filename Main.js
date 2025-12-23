@@ -15,7 +15,7 @@ const {
 const OWNER = process.env.OWNER_NUMBER || "";
 const BOT_NAME = process.env.BOT_NAME || "MATRIX-MD";
 const GOODBYE_MESSAGE = process.env.GOODBYE_MESSAGE || "Au-revoir";
-const BIENVENUE_MESSAGE = process.env.BIENVENUE_MESSAGE || "Bienvenue dans le groupe, s'il-te-plaît présente toi";
+const BIENVENUE_MESSAGE = process.env.BIENVENUE_MESSAGE || "Bienvenue dans le groupe, s'il-te-pla卯t pr茅sente toi";
 const COMMAND_PREFIX = process.env.COMMAND_PREFIX || ".";
 
 // -------- Plugins --------
@@ -50,7 +50,7 @@ async function startBot() {
     logger: pino({ level: "silent" }),
     auth: state,
     version,
-    printQRInTerminal: false // On génère QR code manuellement
+    printQRInTerminal: false // On g茅n猫re QR code manuellement
   });
 
   sock.ev.on("creds.update", saveCreds);
@@ -61,23 +61,23 @@ async function startBot() {
 
     // Affichage QR code
     if (qr) {
-      console.log("\n📱 Scanne ce QR Code avec WhatsApp\n");
+      console.log("\n馃摫 Scanne ce QR Code avec WhatsApp\n");
       qrcode.generate(qr, { small: true });
     }
 
     if (connection === "open") {
-      console.log(`\n✅ ${BOT_NAME} connecté avec succès !`);
+      console.log(`\n鉁� ${BOT_NAME} connect茅 avec succ猫s !`);
       if (OWNER) {
-        sock.sendMessage(OWNER, { text: `🤖 ${BOT_NAME} est maintenant en ligne.\nTapez ${COMMAND_PREFIX}menu` }).catch(() => {});
+        sock.sendMessage(OWNER, { text: `馃 ${BOT_NAME} est maintenant en ligne.\nTapez ${COMMAND_PREFIX}menu` }).catch(() => {});
       }
     }
 
     if (connection === "close") {
       const reason = lastDisconnect?.error?.output?.statusCode;
-      console.log("❌ Connexion fermée :", reason);
+      console.log("鉂� Connexion ferm茅e :", reason);
 
       if (reason !== DisconnectReason.loggedOut) {
-        console.log("🔄 Reconnexion...");
+        console.log("馃攧 Reconnexion...");
         startBot();
       }
     }
@@ -108,15 +108,15 @@ async function startBot() {
       try {
         await plugins[cmdName](sock, msg, args, participants);
       } catch (err) {
-        console.error("❌ Erreur commande :", err);
-        await sock.sendMessage(msg.key.remoteJid, { text: "❌ Erreur lors de l’exécution de la commande" });
+        console.error("鉂� Erreur commande :", err);
+        await sock.sendMessage(msg.key.remoteJid, { text: "鉂� Erreur lors de l鈥檈x茅cution de la commande" });
       }
     }
 
     // -------- Commande menu --------
     if (cmdName === "menu") {
       const menuText = `
-🤖 ${BOT_NAME} - Menu des commandes
+馃 ${BOT_NAME} - Menu des commandes
 
 - .help : Liste des commandes
 - .info : Infos du bot
